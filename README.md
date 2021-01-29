@@ -49,7 +49,7 @@ Install Node JS and NPM.
 
 You can download using git:
 
-    git clone https://github.com/miftahul-huda/buma-component-rating-backend.git
+    git clone https://github.com/miftahul-huda/gcsfileuploader.git
 
 **Install**
 
