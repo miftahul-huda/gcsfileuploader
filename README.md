@@ -1,3 +1,4 @@
+
 ## GCS Fileuploader
 
 
@@ -9,33 +10,33 @@ This is a backend service to upload files to GCP.
 
     GET /uploader/gcs-list/:project/:bucket/:folder
 
-**project:** 
-
-the GCP project id
-
-**bucket:** 
-
-Bucket name
-
-**folder:** 
-
-the folder where you want to get the object list from
+    **project:** 
+    
+    the GCP project id
+    
+    **bucket:** 
+    
+    Bucket name
+    
+    **folder:** 
+    
+    the folder where you want to get the object list from
 
 2. To upload the file
 
-POST  /upload/gcs/:project/:bucket/:folder
+    POST  /upload/gcs/:project/:bucket/:folder
 
-**project:** 
-
-the GCP project id
-
-**bucket:** 
-
-Bucket name
-
-**folder:** 
-
-the folder where you want to get the object list from
+    **project:** 
+    
+    the GCP project id
+    
+    **bucket:** 
+    
+    Bucket name
+    
+    **folder:** 
+    
+    the folder where you want to get the object list from
 
 The post should be in the FORM data, with "file" as the file input variable.
 
@@ -86,4 +87,3 @@ After login, deploy the application in app engine:
     gcloud app deploy
 
 Once done, open the link that displayed in the output of the deploy command.
-
