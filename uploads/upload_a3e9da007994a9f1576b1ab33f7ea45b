@@ -1,0 +1,152 @@
+import React, { useState, useEffect } from 'react';
+import { makeStyles } from '@material-ui/styles';
+import { Grid } from '@material-ui/core';
+import useGlobal from "store";
+import LinearProgress from '@material-ui/core/LinearProgress';
+import clsx from 'clsx';
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Divider,
+} from '@material-ui/core';
+
+
+import {
+  Costs,
+  AWSCosts
+} from './components';
+import {default as styles} from "../../defaultstyle";
+import Typography from "@material-ui/core/Typography";
+import Tabs from '@material-ui/core/Tabs';
+import Tab from '@material-ui/core/Tab';
+
+const useStyles = makeStyles(theme => ({
+  root: {
+    padding: theme.spacing(4)
+  },
+  loader:{
+    position: 'absolute'
+  },
+  standingOutContent: {
+    marginBottom: 33,
+  },
+  chartContainer: {
+    position: 'relative'
+  },
+  progress : {
+    width: '100%',
+    '& > * + *': {
+      marginTop: theme.spacing(2),
+    },
+  },
+}));
+
+const Dashboard = (props) => {
+  const { className, staticContext, ...rest } = props;
+
+  const [customer, _] = useGlobal(
+    state => state.customer,
+    actions => actions.setCustomer
+  );
+
+  const [customerData, __] = useGlobal(
+    state => state.customerData,
+    actions => actions.pass
+  );
+
+
+  const [billingData, ___] = useGlobal(
+    state => state.billingData,
+    actions => actions.pass
+  );
+
+  const [awsBillingData, ____] = useGlobal(
+    state => state.awsBillingData,
+    actions => actions.pass
+  );
+
+  const classes = useStyles();
+
+  const [selectedTab, setSelectedTab] = useState(0);
+
+  const onSelectedTabChanged = (_, val) => {
+    setSelectedTab(val);
+  };
+
+  const initialLoad = () => {
+
+    setSelectedTab(0)
+  }
+
+  useEffect(() => {
+    const unsubscribe = initialLoad()
+
+    return unsubscribe
+  }, [customer]);
+
+  const renderCosts = () =>
+  <Card
+      {...rest}
+      className={clsx(classes.root, className)}
+    >
+      <CardContent>
+      <div className={classes.chartContainer} style={styles.cardBody}>
+          <Costs billingData={billingData} />
+       </div>
+      </CardContent>
+      <Divider />
+
+    </Card>;
+
+const renderAWSCosts = () =>
+<Card
+    {...rest}
+    className={clsx(classes.root, className)}
+  >
+    <CardContent>
+    <div style={styles.cardHeader}>
+        <Typography variant="body1" component="span">
+            Billing dates are in US Pacific Time
+        </Typography>
+    </div>
+    <Divider />
+    <div className={classes.chartContainer} style={styles.cardBody}>
+        <AWSCosts awsBillingData={awsBillingData} />
+     </div>
+    </CardContent>
+    <Divider />
+
+  </Card>;
+
+  const renderGCPTab = () =>
+     {return renderCosts();}
+
+  const renderAWSTab = () =>
+      {return renderAWSCosts()};
+
+  return (
+
+    customer ? (
+        <div>
+        <Tabs
+        value={selectedTab}
+        indicatorColor="primary"
+        textColor="primary"
+        onChange={onSelectedTabChanged}
+        >
+        <Tab label="GCP" />
+        <Tab label="AWS" disabled={!customer.aws_billing} />
+        </Tabs>
+        {selectedTab===0 ? renderGCPTab() : renderAWSTab()}
+        </div>
+    ) :
+    (
+        <div className={classes.progress}>
+          <LinearProgress variant="query" />
+        </div>
+    )
+  );
+};
+
+export default Dashboard;

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<%- include ("./headerscript.html") -%>
+</head>
+
+<style>
+    .dropzone{
+        border: solid 1px #ccc;
+        border-radius: 5px;
+    }
+</style>
+<body>
+<%- include ("./header.html") -%>
+
+
+    <div class="card-body">
+
+        <div>
+            <table id="datatable" class="table table-bordered">
+            </table>
+        </div>
+
+        <form>
+            <div class="position-relative form-group">
+                <label for="name" class="">Name</label>
+                <input id="name" placeholder="example : myapp" type="text" class="form-control">
+            </div>
+            <div class="position-relative form-group">
+                <label for="key" class="">Key</label>
+                <input id="key" placeholder="example : http://myapp.com" type="text" class="form-control">
+            </div>
+            <div class="position-relative form-group">
+                <label for="value" class="">Value</label>
+                <input id="value" placeholder="example : http://myapp.com/callback" type="text" class="form-control">
+            </div>
+            <div class="position-relative form-group">
+                <button id="btn-register" type="button" class="btn btn-block btn-primary">Register</button>
+            </div>
+        </form>
+
+    </div>
+
+<%- include ("./footer.html") -%>
+</body>
+
+<script>
+
+$(document).ready(function(){
+    loadConfig();
+    $("#btn-register").click(function(e){
+        registerConfig(function(){
+            loadConfig();
+        });
+    });
+})
+
+var table = null;
+function loadConfig()
+{
+    var url = "/config";
+
+    $.get(url, function(response){
+        if(response.success)
+        {
+            var configs = response.payload;
+            console.log(configs)
+
+            for(var i=0; i < configs.length; i++)
+            {
+                configs[i].delete = "<div style='cursor: pointer' onclick='deleteConfig(" + configs[i].id + ")'>x</div>"
+            }
+
+            if(table != null)
+                table.destroy();
+
+            table = $("#datatable").DataTable({
+                data: configs,
+                columns: [
+                    { title: "Name", data:"name"},
+                    { title: "Key", data: "key"},
+                    { title: "Value", data: "value"},
+                    { title: "", data: "delete"}
+                ]
+            })
+        }
+        else{
+            alert(response.error);
+        }
+    });    
+}
+
+function registerConfig(callback)
+{
+    var url = "/config/create";
+    var o = {};
+    o.name = $("#name").val();
+    o.key = $("#key").val();
+    o.value = encodeURIComponent($("#value").val());
+
+    console.log(JSON.stringify(o))
+
+    url += "/" + o.name + "/"+ o.key + "/" + o.value;
+    $.get(url, function(response){
+        if(response.success)
+        {
+            $("input").val("");
+            if(callback != null)
+                callback();
+        }
+        else{
+            console.log(response);
+            alert(response.error);
+        }
+    });
+}
+
+function deleteConfig(i)
+{
+
+    var url = "/config/delete/" + i;
+    $.get(url,  function(response){
+        if(response.success)
+        {
+            loadConfig();
+        }
+        else{
+            console.log(response);
+            alert(response.error);
+        }
+    });
+}
+
+
+</script>
+</html>
+
+

@@ -1,0 +1,5 @@
+{
+    "GCS_PROJECT" : "mind-id-mct-dev",
+    "GCS_CREDENTIAL" : "/Users/miftahul.huda/Credentials/mind-id-mct-dev-gcs.json",
+    "AUTHENTICATION_HOST" : "http://localhost:3000"
+}

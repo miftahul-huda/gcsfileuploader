@@ -1,0 +1,8 @@
+[
+    { "path" :  "/", "router"  : "./routes/index" },
+    { "path" :  "/web", "router"  : "./routes/web" },
+    { "path" :  "/upload", "router"  : "./routes/uploader" },
+    { "path" :  "/session", "router"  : "./routes/session" },
+    { "path" :  "/config", "router"  : "./routes/config" }
+    
+]

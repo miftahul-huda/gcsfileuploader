@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<%- include ("./headerscript.html") -%>
+</head>
+<body>
+<%- include ("./header.html") -%>
+
+    <div class="card-body">
+        <form>
+            <div class="position-relative form-group">
+                <label for="appname" class="">Application name</label>
+                <input id="appname" placeholder="example : myapp" type="text" class="form-control">
+            </div>
+            <div class="position-relative form-group">
+                <label for="appurl" class="">Application url</label>
+                <input id="appurl" placeholder="example : http://myapp.com" type="text" class="form-control">
+            </div>
+            <div class="position-relative form-group">
+                <label for="appcallback" class="">Login callback</label>
+                <input id="appcallback" placeholder="example : http://myapp.com/callback" type="text" class="form-control">
+            </div>
+            <div class="position-relative form-group">
+                <label for="description" class="">Description</label>
+                <textarea  style="height: 100px;" id="description" placeholder="description of the Application" type="text" class="form-control"></textarea>
+            </div>
+            <div class="position-relative form-group">
+                <button id="btn-register" type="button" class="btn btn-block btn-primary">Register</button>
+            </div>
+        </form>
+    </div>
+
+<%- include ("./footer.html") -%>
+</body>
+
+<script>
+    $(document).ready(function() {
+
+        $("#btn-register").click(function(){
+            registerApp();
+        })
+    });
+
+    function registerApp()
+    {
+        var o = {};
+        o.appname = $("#appname").val();
+        o.appurl = $("#appurl").val();
+        o.callbackurl = $("#appcallback").val();
+        o.appdescription = $("#description").val();
+
+        console.log(JSON.stringify(o));
+
+        var url = API_HOST + "/application/register";
+        $.post(url, JSON.stringify(o), function(response){
+            if(response.success)
+            {
+                alert("Application has been registered");
+                $("input").val("");
+                $("textarea").val("");
+
+            }
+            else
+            {
+                alert(response.message);
+            }
+        })
+    }
+
+</script>
+</html>
+
+

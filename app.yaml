@@ -1,0 +1,3 @@
+service: gcsfileuploader-v2
+runtime: nodejs12
+env: standard

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<%- include ("./headerscript.html") -%>
+</head>
+
+<style>
+    .dropzone{
+        border: solid 1px #ccc;
+        border-radius: 5px;
+    }
+</style>
+<body>
+<%- include ("./header.html") -%>
+
+
+    <div class="card-body">
+        <div class="position-relative form-group" style="display: none; flex-direction: row">
+            <div class="form-group" style="width: 30%;">
+                <label>Project</label>
+                <input id="project" value="<%=session.project %>" placeholder="Example: project-04930" type="text" class="form-control">
+            </div>
+            <div style="width: 10%"></div>
+            <div class="form-group" style="width: 30%;">
+                <label>Bucket</label>
+                <input id="bucket"  value="<%=session.bucket %>" placeholder="Example : my-bucket" type="text" class="form-control">
+            </div>
+            <div style="width: 10%"></div>
+            <div class="form-group" style="width: 30%;">
+                <label>Folder</label>
+                <input id="folder" value="<%=session.folder %>" placeholder="Example : my-folder" type="text" class="form-control">
+            </div>
+        </div>
+
+        <div class="position-relative form-group" style="display: flex; flex-direction: row">
+            <div class="form-group" style="width: 30%;">
+                <label>Folder</label>
+                <select id="cmb-folders" class="form-control select2" style="width: 100%;">
+                    <option value="finance_and_sales">Finance and Sales</option>
+                    <option value="kpi_monitoring">KPI Monitoring</option>
+                </select>
+           </div>
+            <div style="width: 10%"></div>
+            <div class="form-group" style="width: 30%;">
+                <label>Subfolder</label>
+                <select id="cmb-subfolders" class="form-control select2" style="width: 100%;">
+                </select>            
+            </div>
+        </div>
+
+        <div class="position-relative form-group">
+            <label for="appname" class="">Drag drop the files (or click to open files)</label>
+            <form   id="myDropzone" action="/file-upload" class="dropzone">
+                <div class="fallback">
+                  <input name="file" type="file" multiple />
+                </div>
+            </form>
+            <div class="position-relative form-group">
+                <button id="btn-clear" type="button" class="btn btn-block btn-primary">Clear</button>
+            </div>
+        </div>
+
+        <div style="height: 50px">
+
+        </div>
+        <div style="width: 100%; border: solid 1px #ccc"></div>
+        <div style="padding: 5px; font-weight: bold;">
+            List of files
+        </div>
+        <div style="width: 100%; border: solid 1px #ccc"></div>
+
+        <div style="padding: 15px; width: 100%; align-items: right; text-align: right">
+            <button onclick="deleteFiles()">Delete</button>
+        </div>
+        
+
+        <table id="datatable"></table>
+
+    </div>
+
+<%- include ("./footer.html") -%>
+</body>
+
+<script>
+
+var FOLDERDATA = null;
+
+function getFolderData(callback)
+{
+    var url = "/upload/gcs/folders";
+    $.get(url, function(response){
+        
+        var folders = JSON.parse(response.payload);
+        console.log(folders);
+        FOLDERDATA = folders;
+        if(callback != null)
+            callback(folders)
+    })
+}
+
+function setFolderAndSubFolder() 
+{
+    var folder = $("#cmb-folders").val() + "/" + $("#cmb-subfolders").val();
+    $("#folder").val(folder)
+}
+    var message = "";
+    var error = false;
+    var popUpError = false;
+    Dropzone.options.myDropzone = {
+        init: function() {
+            this.on("processing", function(file) {
+                setFolderAndSubFolder();
+                this.options.url = getUrl();
+                message = "";
+                error = false;
+                popUpError = false;
+                
+            });
+
+            this.on("complete", function(file) {
+                if (this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
+                    if(error == false)
+                    {
+                        loadGcsObjects();
+                        window.popWindow.dialog("Upload complete", "Validation" );
+                    }
+                    else
+                    {
+                        window.popWindow.dialog(message, "Validation" );
+    
+                    }
+                }
+
+            });
+
+            this.on("success", function(file, response) {
+                console.log(response);
+                console.log(file)
+
+                if(response.success == false)
+                {
+                    //window.popWindow.dialog("Error: " + response.message, "Validation" );
+                    error = true;
+                    $('.dropzone')[0].dropzone.files.forEach(function(item) { 
+                        if(file.name == item.name)
+                        {
+                            message += response.message + " : '" + item.name + "'<br>"; 
+                            item.previewElement.remove(); 
+                        }
+                    });
+                }
+                else {
+                    error = false;
+                    
+                }
+            })
+        }
+    };
+
+    $(document).ready(function() {
+        
+        getFolderData(function(folders){
+
+            $("#btn-clear").click(function(){
+                Dropzone.forElement('#myDropzone').removeAllFiles(true)
+            });
+
+            setFolder();
+            setSubFolder();
+            loadGcsObjects();
+            
+            $("#cmb-folders").on("change", function(){
+                setSubFolder();
+                loadGcsObjects();
+            });
+
+            $("#cmb-subfolders").on("change", function(){
+                loadGcsObjects();
+            });
+        })
+
+
+    });
+
+    function setFolder()
+    {
+        $("#cmb-folders").html("");
+        FOLDERDATA.map((item, idx) => {
+            $("#cmb-folders").append("<option value='" + item.folder + "'>" + item.text + "</option>")
+        
+        })
+    }
+
+    function setSubFolder()
+    {
+        var folder = $("#cmb-folders").val();
+        var subFolders = [];
+
+        $("#cmb-subfolders").html("");
+        FOLDERDATA.map((item, idx) => {
+            if(item.folder == folder)
+            {
+                subFolders = item.subFolders;
+            }
+        })
+
+        subFolders.map((item, idx) => {
+            $("#cmb-subfolders").append("<option value='" + item.folder + "'>" + item.text + "</option>")
+        })
+    }
+
+    function getUrl()
+    {
+        var project = $("#project").val();
+        var bucket = $("#bucket").val();
+        var folder = $("#folder").val();
+        folder = encodeURIComponent(folder);
+
+        var url = "/upload/gcs/" + project + "/" + bucket + "/" + folder;
+        console.log(url);
+        return url;
+    }
+
+    var table  = null;
+    function loadGcsObjects()
+    {
+        setFolderAndSubFolder();
+        var project = $("#project").val();
+        var bucket = $("#bucket").val();
+        var folder = $("#folder").val();
+        folder = encodeURIComponent(folder);
+
+        var url = "/upload/gcs-list/" + project + "/" + bucket + "/" + folder;
+        console.log(url);
+        $.get(url, function(data){
+            console.log(data);
+
+            let items = data.payload;
+            for(var i = 0; i < items.length;i++)
+            {
+                var item = items[i];
+                item.ext = "<input type='checkbox' name='file' value='" + item.name + "''>"; 
+            }
+
+            if(table != null)
+                table.destroy();
+
+            table = $("#datatable").DataTable({
+                data: data.payload,
+                columns: [
+                    { title: 'Name', data: 'name' },
+                    { title: 'Time', data: 'metadata.timeCreated' },
+                    { title: '', data: 'ext' }
+                ]
+            })
+        })
+    }
+
+    function deleteFiles()
+    {
+        var files = [];
+        $.each($("input[name='file']:checked"), function(){
+
+            files.push(encodeURIComponent($(this).val()));
+        });
+
+        var filenames = files.join(";");
+        console.log(filenames);
+
+        setFolderAndSubFolder();
+        var project = $("#project").val();
+        var bucket = $("#bucket").val();
+
+        var url = "/upload/gcs-delete/" + project + "/" + bucket + "/" + filenames;
+        console.log(url);
+        $.get(url, function(response){
+            console.log(response);
+            setTimeout(function(){
+                loadGcsObjects();
+            }, 2000)
+            
+        });
+
+    }
+
+
+
+</script>
+</html>
+
+
