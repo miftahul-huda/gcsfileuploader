@@ -8,7 +8,7 @@ This is a backend service to upload files to GCP.
 
 1. To get all the objects in specific folder;
 
-    GET /uploader/gcs-list/:project/:bucket/:folder
+    GET /upload/gcs-list/:project/:bucket/:folder
 
     **project:** 
     
