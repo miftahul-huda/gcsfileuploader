@@ -32,10 +32,10 @@ router.get('', function (req, res){
             
             if((appSession.user != null && appSession.user.length > 0))
             {
-    
                 var dir = __dirname;
+                console.log(appSession.user);
                 var p = path.resolve( dir, "../public/pages/", "uploader");
-                res.render(p, { session:  appSession} )
+                res.render(p, { session:  appSession, sessionJson: JSON.stringify(appSession)} )
             }
             else 
             {
@@ -76,7 +76,7 @@ router.get('/pass', function (req, res){
     
                 var dir = __dirname;
                 var p = path.resolve( dir, "../public/pages/", "uploader");
-                res.render(p, { session:  appSession} )
+                res.render(p, { session:  appSession, sessionJson: JSON.stringify(appSession)} )
             }
             else 
             {

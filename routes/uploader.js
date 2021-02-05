@@ -3,6 +3,7 @@ var router = express.Router();
 const path = require('path');
 var fs = require('fs');
 const ConfigLogic = require('../modules/logic/configlogic')
+let UploadedFileModel = require("../modules/models/uploadedfilemodel")
 
 const {Storage} = require('@google-cloud/storage');
 let ok = false;
@@ -65,6 +66,8 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
     let projectName = req.params.project;
     let gcsFolder = req.params.folder;
     let bucketName = req.params.bucket;
+    let user = req.query.user;
+    let orgname = req.query.orgname;
   
     let inputFile = req.files.file.path;
     let outputFilename = originalFilename;
@@ -97,12 +100,25 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
           appSession.folder = gcsFolder;
         
           uploadFileToGcs(credential, projectName, bucketName, outputFilename, inputFile).then(function (res){
+
+            let uploadedfile = {
+              company: orgname,
+              folder: gcsFolder,
+              filename: outputFilename,
+              username: user
+            };
+            UploadedFileModel.create(uploadedfile);
+
             fs.unlinkSync(req.files.file.path);
+
+
           })
+
           let uri = "gs://" + bucketName + "/" + outputFilename;
           res.setHeader('Content-Type', 'application/json');
           let o = { success: true, payload: uri }
           res.send(o);
+
         });
 
       }

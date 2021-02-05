@@ -30,6 +30,11 @@
                 <label>Folder</label>
                 <input id="folder" value="<%=session.folder %>" placeholder="Example : my-folder" type="text" class="form-control">
             </div>
+
+            <input type="hidden" id="orgname" value="<%=session.orgname %>" />
+            <input type="hidden" id="user" value="<%=session.user %>" />
+            <input type="hidden" id="firstname" value="<%=session.firstname %>" />
+            <input type="hidden" id="lastname" value="<%=session.lastname %>" />
         </div>
 
         <div class="position-relative form-group" style="display: flex; flex-direction: row">
@@ -70,7 +75,7 @@
         <div style="width: 100%; border: solid 1px #ccc"></div>
 
         <div style="padding: 15px; width: 100%; align-items: right; text-align: right">
-            <button onclick="deleteFiles()">Delete</button>
+            <button style="background-color: #14325C; color: #fff; border: solid 0px; width: 200px; height: 30px" onclick="deleteFiles()">Delete</button>
         </div>
         
 
@@ -82,6 +87,8 @@
 </body>
 
 <script>
+
+console.log("<%=sessionJson %>");
 
 var FOLDERDATA = null;
 
@@ -214,9 +221,13 @@ function setFolderAndSubFolder()
         var project = $("#project").val();
         var bucket = $("#bucket").val();
         var folder = $("#folder").val();
+        var orgname = encodeURIComponent($("#orgname").val());
+        var user = $("#user").val();
+        var firstname = $("#firstname").val();
+        var lastname = $("#lastname").val();
         folder = encodeURIComponent(folder);
 
-        var url = "/upload/gcs/" + project + "/" + bucket + "/" + folder;
+        var url = "/upload/gcs/" + project + "/" + bucket + "/" + folder + "?user=" + user + "&orgname=" + orgname;
         console.log(url);
         return url;
     }

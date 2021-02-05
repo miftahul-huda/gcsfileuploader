@@ -1,8 +1,25 @@
-body {
-  padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
-}
+
 
 a {
   color: #00B7FF;
+}
+
+.btn-primary {
+  background-color: #14325C;
+  border: 0px solid;
+}
+
+.btn-primary:hover {
+  background-color: #49688f;
+  border: 0px solid;
+}
+
+.btn-primary:not( :hover ) {
+  background-color: #49688f;
+  border: 0px solid;
+}
+
+.btn-primary:active {
+  background-color: #49688f;
+  border: 0px solid;
 }
