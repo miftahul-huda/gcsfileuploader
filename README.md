@@ -88,7 +88,7 @@ This uses port 8080 to connect and PostgreSQL. To configure the PostgreSQL conne
     vpc_access_connector:
 	    name:  projects/<project-id>/locations/<region-id>/connectors/<vpc-access-connector-name>
 
-This app uses Cloud SQL with private IP connection in GCP. So you'll need to create Serverless VPC Access connector first. <vpc-access-connector-name> is the Serverless VPC Access connector name you created.
+This app uses Cloud SQL with private IP connection in GCP. So you'll need to create Serverless VPC Access connector first. vpc-access-connector-name is the Serverless VPC Access connector name you created.
 
 **Run Locally**
 
