@@ -89,6 +89,7 @@ This uses port 8080 to connect and PostgreSQL. To configure the PostgreSQL conne
 	    name:  projects/<project-id>/locations/<region-id>/connectors/<vpc-access-connector-name>
 
 **Run Locally**
+
 To run locally, just type in the console in the root folder of this application:
 
     PORT=8080 DBHOST=<dbhost> DBNAME=<dbname> DBUSER=<dbuser> DBPASSWORD=<dbpassword> node app.js
