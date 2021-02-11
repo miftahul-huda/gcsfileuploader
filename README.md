@@ -86,7 +86,7 @@ This uses port 8080 to connect and PostgreSQL. To configure the PostgreSQL conne
 	    DBUSER:  "<dbuser>"
 	    DBPASSWORD:  "<dbpassword>"
     vpc_access_connector:
-	    name:  projects/mind-id-mct-dev/locations/asia-southeast2/connectors/app-engine-cloudsql
+	    name:  projects/<project-id>/locations/<region-id>/connectors/<vpc-access-connector-name>
 
 **Run Locally**
 To run locally, just type in the console in the root folder of this application:
