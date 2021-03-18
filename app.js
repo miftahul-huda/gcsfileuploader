@@ -5,6 +5,8 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var bodyParser = require('body-parser')
 const session = require('express-session');
+const {Datastore} = require('@google-cloud/datastore');
+const {DatastoreStore} = require('@google-cloud/connect-datastore');
 
 var formidable = require('express-formidable')
 var Initialization = require("./initialization")
@@ -29,7 +31,12 @@ app.use(formidable({
 	uploadDir: '/tmp'
 }));
 
-app.use(session({secret: 'gcsfileuploader',saveUninitialized: true,resave: true}));
+app.use(session({
+  store: new DatastoreStore({
+    dataset: new Datastore(),
+    kind: 'express-sessions',
+  }),
+  secret: 'gcsfileuploader',saveUninitialized: true,resave: false}));
 
 
 //Dynamic routing based on configuration
@@ -74,6 +81,8 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.render('error');
+
+  //res.setHeader('Strict-Transport-Security', 'max-age=10886400; includeSubDomains')
 });
 
 

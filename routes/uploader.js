@@ -3,11 +3,13 @@ var router = express.Router();
 const path = require('path');
 var fs = require('fs');
 const ConfigLogic = require('../modules/logic/configlogic')
+const UploadLogic = require('../modules/logic/uploadlogic')
 let UploadedFileModel = require("../modules/models/uploadedfilemodel")
 
 const {Storage} = require('@google-cloud/storage');
 let ok = false;
 
+const Formatter = require("../modules/util/formatter")
 
 
 
@@ -65,6 +67,8 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
   
     let projectName = req.params.project;
     let gcsFolder = req.params.folder;
+
+    
     let bucketName = req.params.bucket;
     let user = req.query.user;
     let orgname = req.query.orgname;
@@ -95,9 +99,9 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
             credential = null;
         
           let appSession = req.session;
-          appSession.project = projectName;
-          appSession.bucket = bucketName;
-          appSession.folder = gcsFolder;
+          //appSession.project = projectName;
+          //appSession.bucket = bucketName;
+          //appSession.folder = gcsFolder;
         
           uploadFileToGcs(credential, projectName, bucketName, outputFilename, inputFile).then(function (res){
 
@@ -105,7 +109,8 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
               company: orgname,
               folder: gcsFolder,
               filename: outputFilename,
-              username: user
+              username: user,
+              transfered: 0
             };
             UploadedFileModel.create(uploadedfile);
 
@@ -117,6 +122,7 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
           let uri = "gs://" + bucketName + "/" + outputFilename;
           res.setHeader('Content-Type', 'application/json');
           let o = { success: true, payload: uri }
+          //o = Formatter.removeXSS(o);
           res.send(o);
 
         });
@@ -125,6 +131,7 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
       else {
         res.setHeader('Content-Type', 'application/json');
         let o = { success: false, message: 'File type \'' + ext + '\' is not allowed' }
+        o = Formatter.removeXSS(o);
         res.send(o);
       }
 
@@ -139,33 +146,47 @@ router.get('/gcs/folders', (req, res) => {
     var gcsfolder = response.value;
     let o = { success: true, payload:  gcsfolder }
     res.setHeader('Content-Type', 'application/json');
+    //o = Formatter.removeXSS(o);
     res.send(o);    
   });
 });
 
 router.get('/gcs-list/:project/:bucket/:folder', (req, res) => {
 
-  let projectName = req.params.project;
-  let gcsFolder = req.params.folder;
-  let bucketName = req.params.bucket;
+  let appSession = req.session;
 
-  getConfig("GCS_CREDENTIAL").then(function (response){
-    let credential = response.value;
+  if(appSession == null || appSession.user == null)
+    res.send({ success: false, message: "Not Allowed" } )
+  else
+  {
+    /*
+    let projectName = req.params.project;
+    let gcsFolder = req.params.folder;
+    let bucketName = req.params.bucket;
+    */
+    let projectName = appSession.project;
+    let gcsFolder = req.params.folder;
+    let bucketName = appSession.bucket;
 
-    console.log("credential");
-    console.log(credential);
+    getConfig("GCS_CREDENTIAL").then(function (response){
+      let credential = response.value;
 
-    if(credential == "")
-      credential = null;
+      console.log("credential");
+      console.log(credential);
 
-  
-    getListOfObject(credential, projectName, bucketName, gcsFolder).then(function (files){
-      let o = { success: true, payload:  files }
-      res.setHeader('Content-Type', 'application/json');
-      res.send(o);
-    })
+      if(credential == "")
+        credential = null;
 
-  });
+    
+      getListOfObject(credential, projectName, bucketName, gcsFolder).then(function (files){
+        let o = { success: true, payload:  files }
+        res.setHeader('Content-Type', 'application/json');
+        //o = Formatter.removeXSS(o);
+        res.send(o);
+      })
+
+    });
+  }
 })
 
 router.get('/gcs-delete/:project/:bucket/:files', (req, res) => {
@@ -188,10 +209,37 @@ router.get('/gcs-delete/:project/:bucket/:files', (req, res) => {
     deleteFiles(credential, projectName, bucketName, filenames).then(function (result){
       let o = { success: true, payload:  result }
       res.setHeader('Content-Type', 'application/json');
+      //o = Formatter.removeXSS(o);
       res.send(o);
     })
   });
 })
+
+router.get("/transfered/:transfered", (req, res) => {
+  let transfered = req.params.transfered;
+  UploadLogic.findByTransfered(transfered).then(function (uploadedfiles)
+  {
+    res.send(uploadedfiles);
+  }).catch(function (err){
+    console.log("error")
+    console.log(err);
+    res.send(err);
+  })
+});
+
+router.get("/transfered/update/:ids/:transfered", (req, res) => {
+  let transfered = req.params.transfered;
+  let ids = req.params.ids;
+  ids = ids.split(',');
+  UploadLogic.updateTransferedByIds( ids, transfered).then(function (uploadedfiles)
+  {
+    res.send(uploadedfiles);
+  }).catch(function (err){
+    console.log("error")
+    console.log(err);
+    res.send(err);
+  })
+});
 
 async function getListOfObject(credential, projectId, bucketName, folder)
 {

@@ -8,7 +8,7 @@ const { Sequelize, Model, DataTypes } = require('sequelize');
 
 const sequelize = new Sequelize(process.env.DBNAME, process.env.DBUSER, process.env.DBPASSWORD, {
     host: process.env.DBHOST,
-    dialect: "postgresql"  
+    dialect: process.env.DBENGINE  
 });
 
 /*
