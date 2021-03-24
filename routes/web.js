@@ -8,18 +8,23 @@ const ConfigLogic = require('../modules/logic/configlogic')
 router.get("/config", function(req, res){
     var appSession = req.session;
 
-    var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
-    var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
-    var loginUrl = AUTH_HOST + "/web/login";
+    getAllConfig().then(function(configs){
+        var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
+        var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
+        var loginUrl = AUTH_HOST + "/web/login";
+    
+        if(appSession == null || appSession.user == null)
+            res.redirect(loginUrl)
+        else
+        {
+            var dir = __dirname;
+            var p = path.resolve( dir, "../public/pages/", "configuration");
+            res.render(p, { session:  appSession} )    
+        }
+    }).catch(function(error){
+        console.log(error);
+    })
 
-    if(appSession == null || appSession.user == null)
-        res.redirect(loginUrl)
-    else
-    {
-        var dir = __dirname;
-        var p = path.resolve( dir, "../public/pages/", "configuration");
-        res.render(p, { session:  appSession} )    
-    }
 });
 
 router.get('', function (req, res){
