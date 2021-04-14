@@ -10,9 +10,11 @@ const {Storage} = require('@google-cloud/storage');
 let ok = false;
 
 const Formatter = require("../modules/util/formatter")
+/* RESIZE OPTIMIZE IMAGES */
+const Jimp = require('jimp');
 
-
-
+let globalStorage = null;
+let globalBucket = null;
 
 function getConfig(key)
 {
@@ -51,11 +53,40 @@ async function uploadFileToGcs(credential, projectId, bucketName, gcsfilename, f
       // (If the contents will change, use cacheControl: 'no-cache')
       cacheControl: 'public, max-age=31536000',
     },
+  }, function(err){
+    //console.log("uploadFileToGcs.error ")
+    //console.log(err);
   });
 
-  console.log(`${filename} uploaded to ${bucketName}.`);
+
+
+  console.log(`${filename} uploaded to ${bucketName}/${gcsfilename}.`);
   return "gs://" + bucketName + "/" + filename;
 }
+
+
+router.post('/gcs/view/:project/:uri', (req, res) => {
+  let uri = req.params.uri;
+  let url = uri.replace("gs://","");
+  let paths = url.split("/");
+  let project = req.params.project;
+
+  getConfig("GCS_CREDENTIAL").then(async function (response){
+    let credential = response.value;
+    let downloadedfile = "/tmp/" + path.basename(file.name);
+
+    console.log("downloadedfile")
+    console.log(downloadedfile)
+    await gcs_download_file(projectName, bucketName, file.name,  downloadedfile)
+    
+    console.log("jimp")
+    const image = await Jimp.read(downloadedfile );
+    await image.resize(100, Jimp.AUTO);
+    await image.quality(70);
+    await image.writeAsync(downloadedfile);
+  });
+
+});
 
 router.post('/gcs/:project/:bucket/:folder', (req, res) => {
 
@@ -63,7 +94,7 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
     let ext = originalFilename.split('.');
     ext = ext[ext.length - 1];
   
-    let jsonData = require('../config.json');
+    //let jsonData = require('../config.json');
   
     let projectName = req.params.project;
     let gcsFolder = req.params.folder;
@@ -77,6 +108,8 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
     let outputFilename = originalFilename;
   
     outputFilename = gcsFolder + '/' + outputFilename;
+
+
 
     getConfig("GCS_FILETYPES").then(function (response){
       let filetypes = response.value;
@@ -103,7 +136,26 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
           //appSession.bucket = bucketName;
           //appSession.folder = gcsFolder;
         
-          uploadFileToGcs(credential, projectName, bucketName, outputFilename, inputFile).then(function (res){
+          uploadFileToGcs(credential, projectName, bucketName, outputFilename, inputFile).then(async function (res){
+
+            let imgexts = ["jpg", "jpeg", "png", "gif", "tif", "tiff", "eps", "bmp" ];
+            let newgcsfilename = path.basename(outputFilename);
+            let originalPath = outputFilename.replace(newgcsfilename, "");
+            newgcsfilename = originalPath + "thumbnail_" + newgcsfilename;
+
+            if(imgexts.includes(ext.toLowerCase()))
+            {
+              let newInputFile = inputFile + "_thumbnail";
+              const image = await Jimp.read(inputFile);
+              await image.resize(100, Jimp.AUTO);
+              await image.quality(70);
+              await image.writeAsync(newInputFile);
+              console.log(newInputFile);
+              console.log(newgcsfilename);
+              await uploadFileToGcs(credential, projectName, bucketName, newgcsfilename, newInputFile)
+              
+              
+            }
 
             let uploadedfile = {
               company: orgname,
@@ -114,8 +166,7 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
             };
             UploadedFileModel.create(uploadedfile);
 
-            fs.unlinkSync(req.files.file.path);
-
+            //fs.unlinkSync(req.files.file.path);
 
           })
 
@@ -136,9 +187,7 @@ router.post('/gcs/:project/:bucket/:folder', (req, res) => {
       }
 
     });
-  
 
-  
 })
 
 router.get('/gcs/folders', (req, res) => {
@@ -188,6 +237,117 @@ router.get('/gcs-list/:project/:bucket/:folder', (req, res) => {
     });
   }
 })
+
+router.get('/gcs-create-thumbnail/:project/:bucket/:folder', (req, res) => {
+    
+    let projectName = req.params.project;
+    let gcsFolder = req.params.folder;
+    let bucketName = req.params.bucket;
+    /*
+    let projectName = appSession.project;
+    let gcsFolder = req.params.folder;
+    let bucketName = appSession.bucket;
+  */
+    getConfig("GCS_CREDENTIAL").then(function (response){
+      let credential = response.value;
+
+      console.log("credential");
+      console.log(credential);
+
+      if(credential == "")
+        credential = null;
+
+    
+      getListOfObject(credential, projectName, bucketName, gcsFolder).then(async function (files){
+
+        let filenames = [];
+        let counter = 0;
+        files.forEach(async (file) => {
+          let imgexts = ["jpg", "jpeg", "png", "gif", "tif", "tiff", "eps", "bmp" ];
+          let ext = path.extname(file.name).replace(".", "");
+          let newgcsfilename = file.name.replace("." + ext, "");
+          newgcsfilename = newgcsfilename + "-thumbnail." + ext;
+          console.log(ext)
+          console.log(counter)
+          if(imgexts.includes(ext.toLowerCase()) && file.name.indexOf("thumbnail") < 0)
+          {
+
+            try{
+              let downloadedfile = "/tmp/downloads/" + path.basename(file.name);
+
+              console.log("downloadedfile")
+              console.log(downloadedfile)
+              await gcs_download_file(projectName, bucketName, file.name,  downloadedfile)
+              
+              /*
+              console.log("jimp")
+              const image = await Jimp.read(downloadedfile );
+              await image.resize(100, Jimp.AUTO);
+              await image.quality(70);
+              await image.writeAsync(downloadedfile);
+              console.log("newgcsfilename");
+              console.log(newgcsfilename);
+              filenames.push(newgcsfilename);
+              await uploadFileToGcs(credential, projectName, bucketName, newgcsfilename,downloadedfile );
+
+              fs.unlink(downloadedfile, (err)=>{
+                console.log("delete " + downloadedfile)
+              });*/
+            }catch(e)
+            {
+              console.log(e);
+            }
+          }         
+          counter = counter + 1;
+          //
+        })
+
+        res.send({ success: true, payload:filenames  });
+
+      })
+
+    });
+})
+
+function gcs_download_file(projectId, bucketName, sourcepath, targetPath, credential=null)
+{
+
+  console.log("downloading " + sourcepath)
+
+  let promise = new Promise((resolve, reject)=>{
+
+    let ext = path.extname(sourcepath);
+    let file = null;
+
+    if(globalStorage == null)
+    {
+      if(credential != null)
+        globalStorage = new Storage({ project: projectId, keyFilename: credential });
+      else
+        globalStorage = new Storage();
+      
+      globalBucket = globalStorage.bucket(bucketName); 
+      
+    }
+    
+    file = globalBucket.file(sourcepath);
+  
+    //-
+    // Download a file to a local destination.
+    //-
+    file.download({
+      destination: targetPath
+    }).then((res)=>{
+      console.log("Download done")
+      resolve(res);
+    }).catch(err => {
+      reject(err);
+    })
+  })
+
+  return promise;
+
+}
 
 router.get('/gcs-delete/:project/:bucket/:files', (req, res) => {
 
@@ -241,6 +401,31 @@ router.get("/transfered/update/:ids/:transfered", (req, res) => {
   })
 });
 
+router.get("/gcs/create-folder/:project/:bucket/:folder", (req, res) => {
+  let project = req.params.project;
+  let bucket = req.params.bucket;
+  let folder = req.params.folder;
+
+  getConfig("GCS_CREDENTIAL").then(function (response){
+    let credential = response.value;
+
+    console.log("credential");
+    console.log(credential);
+
+    if(credential == "")
+      credential = null;
+
+    createFolder(credential, project, bucket, folder).then((response)=>{
+      res.send({ success: true, payload: response });
+    }).catch((err)=>{
+      console.log(err);
+      res.send({ success: false, payload: err });
+    })
+
+  });
+
+});
+
 async function getListOfObject(credential, projectId, bucketName, folder)
 {
   var storage = null;
@@ -257,6 +442,20 @@ async function getListOfObject(credential, projectId, bucketName, folder)
     const [files] = await storage.bucket(bucketName).getFiles(options);
 
     return files;
+}
+
+async function createFolder(credential,  projectId, bucketName, folder)
+{
+  var storage = null;
+
+  if(credential != null)
+    storage = new Storage({ project: projectId, keyFilename: credential });
+  else
+    storage = new Storage();
+
+  fs.writeFileSync("/tmp/README", folder)
+  
+  return storage.bucket(bucketName).upload("/tmp/README", { destination: folder + "/README" } )
 }
 
 async function deleteFiles(credential,  projectId, bucketName, files)

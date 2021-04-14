@@ -98,6 +98,18 @@ class ConfigLogic {
         }
     }
 
+    static async updateByKey(key, value)
+    {
+        try {
+            let newConfig = await ConfigModel.update( { value: value }, { where: { key: key} } );
+            return { success: true, payload: newConfig };
+        }
+        catch (error)
+        {
+            throw { success: false, message: '', error: error };
+        }
+    }
+
     static async update(id,  config)
     {
         let result = this.validate(config);

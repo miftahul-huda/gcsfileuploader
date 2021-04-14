@@ -7,8 +7,8 @@ class UploadedFileModel extends Model {
             company: DataTypes.STRING,
             folder: DataTypes.TEXT,
             filename: DataTypes.STRING,
-            username: DataTypes.STRING,
-            transfered: DataTypes.INTEGER
+            username: DataTypes.STRING
+            //transfered: DataTypes.INTEGER
         }, 
         { sequelize, modelName: 'uploadedfile', tableName: 'uploadedfile', force: force });
     }

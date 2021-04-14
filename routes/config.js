@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+var bodyParser = require('body-parser')
 
 const ConfigLogic = require('../modules/logic/configlogic')
 
@@ -79,6 +80,27 @@ router.post('/update/:id', function (req, res){
     res.send(savedConfig);
   }).catch(function (err){
     console.log("error")
+    res.send(err);
+  })
+})
+
+router.get('/update-by-key/:key/:value', function (req, res){
+  let key = req.params.key;
+  let value = req.params.value;
+  console.log(key)
+  console.log(value)
+
+  var b = new Buffer(value, 'base64')
+  var s = b.toString();
+
+  console.log(s);
+
+  ConfigLogic.updateByKey(key, s).then(function (savedConfig)
+  {
+    res.send(savedConfig);
+  }).catch(function (err){
+    console.log("error")
+    console.log(err);
     res.send(err);
   })
 })

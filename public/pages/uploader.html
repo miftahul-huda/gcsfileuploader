@@ -35,6 +35,9 @@
             <input type="hidden" id="user" value="<%=session.user %>" />
             <input type="hidden" id="firstname" value="<%=session.firstname %>" />
             <input type="hidden" id="lastname" value="<%=session.lastname %>" />
+            <input type="hidden" id="totalFolderLevel" value="<%=session.totalFolderLevel %>" />
+            <input type="hidden" id="project" value="<%=session.project %>" />
+            <input type="hidden" id="bucket" value="<%=session.bucket %>" />
         </div>
 
         <div class="position-relative form-group" style="display: flex; flex-direction: row; height: 10%">
@@ -42,7 +45,7 @@
         </div>
 
 
-        <div class="position-relative form-group" style="display: flex; flex-direction: row">
+        <div id="folder-container" class="position-relative form-group" style="display: flex; flex-direction: row">
             <div class="form-group" style="width: 30%;">
                 <label>Folder</label>
                 <select id="cmb-folders" class="form-control select2" style="width: 100%;">
@@ -100,11 +103,14 @@ var FOLDERDATA = null;
 function getFolderData(callback)
 {
     var url = "/upload/gcs/folders";
+
+    $("#loader").show();
     $.get(url, function(response){
         
         var folders = JSON.parse(response.payload);
         console.log(folders);
         FOLDERDATA = folders;
+        $("#loader").hide();
         if(callback != null)
             callback(folders)
     })
@@ -112,66 +118,88 @@ function getFolderData(callback)
 
 function setFolderAndSubFolder() 
 {
-    var folder = $("#cmb-folders").val() + "/" + $("#cmb-subfolders").val();
+    var totalFolderLevel = $("#totalFolderLevel").val();
+    var folder = "";
+    for(var i = 0; i < totalFolderLevel; i++)
+    {   
+        folder += $("#cmb-folder-" + i).val() + "/"
+    }
+    if(folder.length > 0)
+        folder = folder.substring(0, folder.length - 1)
     $("#folder").val(folder)
 }
-    var message = "";
-    var error = false;
-    var popUpError = false;
-    Dropzone.options.myDropzone = {
-        init: function() {
-            this.on("processing", function(file) {
-                setFolderAndSubFolder();
-                this.options.url = getUrl();
-                message = "";
-                error = false;
-                popUpError = false;
-                
-            });
 
-            this.on("complete", function(file) {
-                if (this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
-                    if(error == false)
-                    {
-                        loadGcsObjects();
-                        window.popWindow.dialog("Upload complete", "Validation" );
-                    }
-                    else
-                    {
-                        window.popWindow.dialog(message, "Validation" );
-    
-                    }
-                }
 
-            });
+var message = "";
+var error = false;
+var popUpError = false;
+Dropzone.options.myDropzone = {
+    init: function() {
+        this.on("processing", function(file) {
+            setFolderAndSubFolder();
+            this.options.url = getUrl();
+            message = "";
+            error = false;
+            popUpError = false;
+            
+        });
 
-            this.on("success", function(file, response) {
-                console.log(response);
-                console.log(file)
-
-                if(response.success == false)
+        this.on("complete", function(file) {
+            if (this.getUploadingFiles().length === 0 && this.getQueuedFiles().length === 0) {
+                if(error == false)
                 {
-                    //window.popWindow.dialog("Error: " + response.message, "Validation" );
-                    error = true;
-                    $('.dropzone')[0].dropzone.files.forEach(function(item) { 
-                        if(file.name == item.name)
-                        {
-                            message += response.message + " : '" + item.name + "'<br>"; 
-                            item.previewElement.remove(); 
-                        }
-                    });
+                    loadGcsObjects();
+                    window.popWindow.dialog("Upload complete", "Validation" );
                 }
-                else {
-                    error = false;
-                    
+                else
+                {
+                    window.popWindow.dialog(message, "Validation" );
+
                 }
-            })
-        }
-    };
+            }
+
+        });
+
+        this.on("success", function(file, response) {
+            console.log(response);
+            console.log(file)
+
+            if(response.success == false)
+            {
+                //window.popWindow.dialog("Error: " + response.message, "Validation" );
+                error = true;
+                $('.dropzone')[0].dropzone.files.forEach(function(item) { 
+                    if(file.name == item.name)
+                    {
+                        message += response.message + " : '" + item.name + "'<br>"; 
+                        item.previewElement.remove(); 
+                    }
+                });
+            }
+            else {
+                error = false;
+                
+            }
+        })
+    }
+};
+
+function  init()
+{
+    $("#loader").show();
+    getFolderData(function(folders){
+        $("#loader").hide();
+        FOLDERDATA = folders;
+        fillAllFolders(folders);
+    })
+}
 
     $(document).ready(function() {
         
-        getFolderData(function(folders){
+        createFolderComboboxs();
+        init();
+
+        /*getFolderData(function(folders){
 
             $("#btn-clear").click(function(){
                 Dropzone.forElement('#myDropzone').removeAllFiles(true)
@@ -189,10 +217,204 @@ function setFolderAndSubFolder()
             $("#cmb-subfolders").on("change", function(){
                 loadGcsObjects();
             });
-        })
+        })*/
 
 
     });
+
+    function createFolderComboboxs()
+    {
+        $("#folder-container").html("");
+        var totalFolderLevel = $("#totalFolderLevel").val();
+        for(var i = 0; i < totalFolderLevel; i++)
+        {
+            let html = createFolderCombo(i);
+            $("#folder-container").append(html);
+        }
+    }
+
+    function createFolderCombo(level)
+    {
+        var html = "<div class=\"form-group\" style=\"width: 30%;\">" +
+                "<label>Folder (<A href='javascript:showAddFolder(" + level + ")'>Add</A>)</label>" +
+                "<select id=\"cmb-folder-" + level + "\" class=\"form-control select2\" style=\"width: 100%;\">" +
+                    "</select>" +
+                    "</div><div style='width: 10px'></div>";
+        return html;
+    }
+
+    function fillAllFolders(folders)
+    {
+        var level = 0;
+        var totalFolderLevel = $("#totalFolderLevel").val();
+        fillFolder(0, folders);
+    }
+
+    var SEARCHPATH = "";
+    var CURRENTPATH = "";
+
+    function showAddFolder(level)
+    {
+        var folder = prompt("Add folder name");
+        var addedFolder = { folder: folder, text: folder }
+        var parentFolder = $("#cmb-folder-" + (level - 1)).val();
+
+        SEARCHPATH = "";
+        for(var i = 0; i < level; i++)
+        {
+            SEARCHPATH +=  $("#cmb-folder-" + i).val() + "/";
+        }
+        
+        if(SEARCHPATH.length > 0)
+            SEARCHPATH = SEARCHPATH.substring(0, SEARCHPATH.length - 1)
+        addFolderByParentAndLevel(0, (level - 1), parentFolder, addedFolder, FOLDERDATA, "" );
+    }
+
+    function getCurrentPath(level)
+    {
+        var currentPath = "";
+        var totalFolderLevel = $("#totalFolderLevel").val();
+        for(var i = 0; i < level; i++)
+        {
+            currentPath +=  $("#cmb-folder-" + i).val() + "/";
+        }
+        
+        if(currentPath.length > 0)
+            currentPath = currentPath.substring(0, currentPath.length - 1);
+
+        return currentPath;
+    }
+
+
+    function addFolderByParentAndLevel(currentLevel, level, folder, addedFolder, folders, currentPath)
+    {
+        if(folder == null)
+        {
+            folders.push(addedFolder);
+
+            var b64 = btoa(JSON.stringify(folders));
+
+            $("#loader").show();
+            
+            $.get("/config/update-by-key/GCS_FOLDER_STRUCTURE/" + b64,  function (response)
+            {
+                let ffolder = getCurrentPath(level + 1) + "/" + addedFolder.folder;
+                gcsCreateFolder(ffolder, (response)=>{
+                    init();
+                    $("#loader").hide();
+                    console.log(response);
+                });
+
+            });
+        }
+        else
+        {
+           
+            if(folders != null)
+            {
+                //alert(folders)
+
+                folders.map((item, idx) => {
+                    var ccPath = currentPath + "/" + item.folder;
+                    if(currentPath == "")
+                        ccPath = item.folder;
+                    //alert(SEARCHPATH + " - " + ccPath)
+                    if(SEARCHPATH == ccPath && currentLevel == level)
+                    {
+                        //alert(item.folder)
+                        if(item.subFolders == null)
+                            item.subFolders = [];
+                        item.subFolders.push(addedFolder);
+
+                        var b64 = btoa(JSON.stringify(FOLDERDATA));
+                        $("#loader").show();
+                        $.get("/config/update-by-key/GCS_FOLDER_STRUCTURE/" + b64,  function (response)
+                        {
+                            let ffolder = getCurrentPath(level + 1) + "/" + addedFolder.folder;
+                            gcsCreateFolder(ffolder, (response)=>{
+                                init();
+                                console.log(response);
+                                $("#loader").hide();
+                            });
+                        });
+                    }
+                    else if(currentLevel <= level)
+                    {
+                        //alert(currentLevel + " - " + level + " - " + item.folder + " - " + folder)
+                        addFolderByParentAndLevel(currentLevel + 1, level, folder, addedFolder, item.subFolders, ccPath);
+                    }
+                        
+                })
+
+            }
+
+
+        }
+    }
+
+    function fillFolder(level, folders)
+    {
+        var totalFolderLevel = parseInt( $("#totalFolderLevel").val());
+        if(level < totalFolderLevel)
+        {
+            $("#loader").show();
+            console.log("#cmb-folder-" + level)
+            $("#cmb-folder-" + level).html("");
+            $("#cmb-folder-" + level).attr("level", level);
+
+            if(folders != null)
+            {
+                folders.map((item, idx) => {
+                    console.log(item)
+                    $("#cmb-folder-" + level).append("<option value='" + item.folder + "'>" + item.text + "</option>")
+                });
+
+                $("#loader").hide();
+            }
+            
+            $("#cmb-folder-" + level).on("change", function()
+            {
+                var value = $(this).val();
+                var selected = null;
+                if(folders != null)
+                {
+                    folders.map((item)=>{
+                        if(item.folder == value)
+                        {
+                            selected = item;
+                        }
+                    });
+                }
+                var level = parseInt( $(this).attr("level"));
+
+                console.log("onchange #cmb-folder-" + level);
+                
+                var totalFolderLevel = parseInt( $("#totalFolderLevel").val());
+                if(level == totalFolderLevel - 1)
+                {
+                    //alert(level)
+                    loadGcsObjects();
+                }
+                
+                if(level < totalFolderLevel)
+                {
+
+                    //if(selected.subFolders != null)
+                    if(selected != null)
+                        fillFolder(level + 1, selected.subFolders );
+                    else
+                        fillFolder(level + 1, null   );
+                }
+            });
+
+            $("#cmb-folder-" + level).trigger("change");
+
+        }
+
+
+    }
+
+
 
     function setFolder()
     {
@@ -221,6 +443,19 @@ function setFolderAndSubFolder()
         })
     }
 
+    function gcsCreateFolder(folder, callback)
+    {
+        var project = $("#project").val();
+        var bucket = $("#bucket").val();
+        folder = encodeURIComponent(folder);
+        
+
+        $.get("/upload/gcs/create-folder/" + project + "/" + bucket + "/" + folder, function(response){
+            if(callback != null)
+                callback(response)
+        })
+    }
+
     function getUrl()
     {
         var project = $("#project").val();
@@ -240,6 +475,7 @@ function setFolderAndSubFolder()
     var table  = null;
     function loadGcsObjects()
     {
+        $("#loader").show();
         setFolderAndSubFolder();
         var project = $("#project").val();
         var bucket = $("#bucket").val();
@@ -251,24 +487,29 @@ function setFolderAndSubFolder()
         $.get(url, function(data){
             console.log(data);
 
+            $("#loader").hide();
+
             let items = data.payload;
-            for(var i = 0; i < items.length;i++)
+            if(items != null)
             {
-                var item = items[i];
-                item.ext = "<input type='checkbox' name='file' value='" + item.name + "''>"; 
+                for(var i = 0; i < items.length;i++)
+                {
+                    var item = items[i];
+                    item.ext = "<input type='checkbox' name='file' value='" + item.name + "''>"; 
+                }
+
+                if(table != null)
+                    table.destroy();
+
+                table = $("#datatable").DataTable({
+                    data: data.payload,
+                    columns: [
+                        { title: 'Name', data: 'name' },
+                        { title: 'Time', data: 'metadata.timeCreated' },
+                        { title: '', data: 'ext' }
+                    ]
+                })
             }
-
-            if(table != null)
-                table.destroy();
-
-            table = $("#datatable").DataTable({
-                data: data.payload,
-                columns: [
-                    { title: 'Name', data: 'name' },
-                    { title: 'Time', data: 'metadata.timeCreated' },
-                    { title: '', data: 'ext' }
-                ]
-            })
         })
     }
 
@@ -287,10 +528,12 @@ function setFolderAndSubFolder()
         var project = $("#project").val();
         var bucket = $("#bucket").val();
 
+        $("#loader").show();
         var url = "/upload/gcs-delete/" + project + "/" + bucket + "/" + filenames;
         console.log(url);
         $.get(url, function(response){
             console.log(response);
+            $("#loader").hide();
             setTimeout(function(){
                 loadGcsObjects();
             }, 2000)

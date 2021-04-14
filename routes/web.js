@@ -19,7 +19,8 @@ router.get("/config", function(req, res){
         {
             var dir = __dirname;
             var p = path.resolve( dir, "../public/pages/", "configuration");
-            res.render(p, { session:  appSession} )    
+            var option = { app_logo: process.env.APP_LOGO, app_title: process.env.APP_TITLE }
+            res.render(p, { session:  appSession, option: option} )    
         }
     }).catch(function(error){
         console.log(error);
@@ -37,9 +38,18 @@ router.get('', function (req, res){
 
         var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
         var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
+        var GCS_FOLDER_LEVEL = searchConfig(configs, "GCS_FOLDER_LEVEL" ).value;
+        var GCS_BUCKET = searchConfig(configs, "GCS_BUCKET" ).value;
+        if(GCS_FOLDER_LEVEL == null)
+            GCS_FOLDER_LEVEL = 2;
+
         var loginUrl = AUTH_HOST + "/web/login";
-        appSession.bucket = appSession.orginfo;
+        if(GCS_BUCKET != null)
+            appSession.bucket = GCS_BUCKET;
+        else
+            appSession.bucket = appSession.orginfo;
         appSession.project = GCS_PROJECT;
+        appSession.totalFolderLevel = GCS_FOLDER_LEVEL;
     
         //SessionLogic.checkSession(appSession.sessionID).then(function (result)
         //{
@@ -50,7 +60,8 @@ router.get('', function (req, res){
                 var dir = __dirname;
                 console.log(appSession.user);
                 var p = path.resolve( dir, "../public/pages/", "uploader");
-                res.render(p, { session:  appSession, sessionJson: JSON.stringify(appSession)} )
+                var option = { app_logo: process.env.APP_LOGO, app_title: process.env.APP_TITLE }
+                res.render(p, { session:  appSession, sessionJson: JSON.stringify(appSession) , option: option} )
             }
             else 
             {
@@ -78,9 +89,22 @@ router.get('/pass', function (req, res){
 
         var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
         var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
+        var GCS_FOLDER_LEVEL = searchConfig(configs, "GCS_FOLDER_LEVEL" ).value;
+        var GCS_BUCKET = searchConfig(configs, "GCS_BUCKET" ).value;
+        if(GCS_FOLDER_LEVEL == null)
+            GCS_FOLDER_LEVEL = 2;
+
         var loginUrl = AUTH_HOST + "/web/login";
-        appSession.bucket = appSession.orginfo;
+        if(GCS_BUCKET != null)
+            appSession.bucket = GCS_BUCKET;
+        else
+            appSession.bucket = appSession.orginfo;
+
         appSession.project = GCS_PROJECT;
+        appSession.totalFolderLevel = GCS_FOLDER_LEVEL;
+
+        console.log("GCS_FOLDER_LEVEL")
+        console.log(appSession.totalFolderLevel);
     
         //SessionLogic.checkSession(appSession.sessionID).then(function (result)
         //{
@@ -91,7 +115,8 @@ router.get('/pass', function (req, res){
     
                 var dir = __dirname;
                 var p = path.resolve( dir, "../public/pages/", "uploader");
-                res.render(p, { session:  appSession, sessionJson: JSON.stringify(appSession)} )
+                var option = { app_logo: process.env.APP_LOGO, app_title: process.env.APP_TITLE }
+                res.render(p, { session:  appSession, sessionJson: JSON.stringify(appSession), option: option} )
             }
             else 
             {

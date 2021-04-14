@@ -11,7 +11,7 @@ const {DatastoreStore} = require('@google-cloud/connect-datastore');
 var formidable = require('express-formidable')
 var Initialization = require("./initialization")
 
-const port = 8080
+const port = process.env.APPLICATION_PORT;
 
 var ejs = require('ejs'); 
 ejs.open = '{{'; 
