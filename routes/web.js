@@ -39,6 +39,7 @@ router.get('', function (req, res){
         var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
         var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
         var GCS_FOLDER_LEVEL = searchConfig(configs, "GCS_FOLDER_LEVEL" ).value;
+        var GCS_FOLDER_TITLES = searchConfig(configs, "GCS_FOLDER_TITLES" ).value;
         var GCS_BUCKET = searchConfig(configs, "GCS_BUCKET" ).value;
         if(GCS_FOLDER_LEVEL == null)
             GCS_FOLDER_LEVEL = 2;
@@ -50,6 +51,7 @@ router.get('', function (req, res){
             appSession.bucket = appSession.orginfo;
         appSession.project = GCS_PROJECT;
         appSession.totalFolderLevel = GCS_FOLDER_LEVEL;
+        appSession.folderTitles = GCS_FOLDER_TITLES;
     
         //SessionLogic.checkSession(appSession.sessionID).then(function (result)
         //{
@@ -90,6 +92,7 @@ router.get('/pass', function (req, res){
         var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
         var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
         var GCS_FOLDER_LEVEL = searchConfig(configs, "GCS_FOLDER_LEVEL" ).value;
+        var GCS_FOLDER_TITLES = searchConfig(configs, "GCS_FOLDER_TITLES" ).value;
         var GCS_BUCKET = searchConfig(configs, "GCS_BUCKET" ).value;
         if(GCS_FOLDER_LEVEL == null)
             GCS_FOLDER_LEVEL = 2;
@@ -102,6 +105,7 @@ router.get('/pass', function (req, res){
 
         appSession.project = GCS_PROJECT;
         appSession.totalFolderLevel = GCS_FOLDER_LEVEL;
+        appSession.folderTitles = GCS_FOLDER_TITLES;
 
         console.log("GCS_FOLDER_LEVEL")
         console.log(appSession.totalFolderLevel);

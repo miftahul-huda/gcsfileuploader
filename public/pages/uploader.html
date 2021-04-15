@@ -36,6 +36,7 @@
             <input type="hidden" id="firstname" value="<%=session.firstname %>" />
             <input type="hidden" id="lastname" value="<%=session.lastname %>" />
             <input type="hidden" id="totalFolderLevel" value="<%=session.totalFolderLevel %>" />
+            <input type="hidden" id="folderTitles" value="<%=session.folderTitles %>" />
             <input type="hidden" id="project" value="<%=session.project %>" />
             <input type="hidden" id="bucket" value="<%=session.bucket %>" />
         </div>
@@ -99,6 +100,63 @@
 console.log("<%=sessionJson %>");
 
 var FOLDERDATA = null;
+
+function deleteFolder(level)
+{
+    let path = "";
+    for (var i = 0; i <= level; i++)
+    {
+        if(path == "")
+            path = $("#cmb-folder-" + i ).val();
+        else
+            path = path + "/" + $("#cmb-folder-" + i ).val();
+    }
+
+    deleteFolderRecursive(path, FOLDERDATA, "");
+
+    console.log(FOLDERDATA);
+
+    var b64 = btoa(JSON.stringify(FOLDERDATA));
+    $("#loader").show();
+    $.get("/config/update-by-key/GCS_FOLDER_STRUCTURE/" + b64,  function (response)
+    {
+        init();
+        //console.log(response);
+        $("#loader").hide();
+    });
+}
+
+function deleteFolderRecursive(path, folders, currentPath)
+{
+    let removedIdx = -1;
+    folders.map((item, idx) => {
+
+        let curpath = "";
+        if(currentPath == "")
+            curpath = item.folder;
+        else 
+            curpath = currentPath + "/" + item.folder;
+
+        console.log(curpath + " === " + path)
+        if(String(curpath) == String(path))
+        {
+            console.log("ger")
+            removedIdx = idx;
+            folders.splice(removedIdx, 1);
+            console.log(folders)
+            
+        }
+        else {            
+
+            //console.log(item.subFolders)
+            if(item.subFolders != null)
+                deleteFolderRecursive(path, item.subFolders, curpath);
+        }
+    })
+
+    //if(removedIdx > -1)
+    //    folders.splice(removedIdx, 1);
+}
 
 function getFolderData(callback)
 {
@@ -235,8 +293,12 @@ function  init()
 
     function createFolderCombo(level)
     {
+        var titles = $("#folderTitles").val();
+        titles = JSON.parse(titles);
+        console.log(titles);
+
         var html = "<div class=\"form-group\" style=\"width: 30%;\">" +
-                "<label>Folder (<A href='javascript:showAddFolder(" + level + ")'>Add</A>)</label>" +
+                "<label>" + titles[level] + " (<A href='javascript:showAddFolder(" + level + ")'>Add</A>&nbsp;|&nbsp;<A href='javascript:deleteFolder(" + level + ")'>Remove</A>)</label>" +
                 "<select id=\"cmb-folder-" + level + "\" class=\"form-control select2\" style=\"width: 100%;\">" +
                     "</select>" +
                     "</div><div style='width: 10px'></div>";
@@ -256,18 +318,22 @@ function  init()
     function showAddFolder(level)
     {
         var folder = prompt("Add folder name");
-        var addedFolder = { folder: folder, text: folder }
-        var parentFolder = $("#cmb-folder-" + (level - 1)).val();
-
-        SEARCHPATH = "";
-        for(var i = 0; i < level; i++)
+        if(folder  != null && folder.length > 0)
         {
-            SEARCHPATH +=  $("#cmb-folder-" + i).val() + "/";
-        }
         
-        if(SEARCHPATH.length > 0)
-            SEARCHPATH = SEARCHPATH.substring(0, SEARCHPATH.length - 1)
-        addFolderByParentAndLevel(0, (level - 1), parentFolder, addedFolder, FOLDERDATA, "" );
+            var addedFolder = { folder: folder, text: folder }
+            var parentFolder = $("#cmb-folder-" + (level - 1)).val();
+
+            SEARCHPATH = "";
+            for(var i = 0; i < level; i++)
+            {
+                SEARCHPATH +=  $("#cmb-folder-" + i).val() + "/";
+            }
+            
+            if(SEARCHPATH.length > 0)
+                SEARCHPATH = SEARCHPATH.substring(0, SEARCHPATH.length - 1)
+            addFolderByParentAndLevel(0, (level - 1), parentFolder, addedFolder, FOLDERDATA, "" );
+        }
     }
 
     function getCurrentPath(level)
@@ -372,6 +438,7 @@ function  init()
                 $("#loader").hide();
             }
             
+            $("#cmb-folder-" + level).unbind("change");
             $("#cmb-folder-" + level).on("change", function()
             {
                 var value = $(this).val();
