@@ -256,6 +256,9 @@ function  init()
         
         createFolderComboboxs();
         init();
+        $("#btn-clear").click(function(){
+                Dropzone.forElement('#myDropzone').removeAllFiles(true)
+        });
 
         /*getFolderData(function(folders){
 
