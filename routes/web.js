@@ -25,7 +25,6 @@ router.get("/config", function(req, res){
     }).catch(function(error){
         console.log(error);
     })
-
 });
 
 router.get('', function (req, res){
@@ -41,6 +40,8 @@ router.get('', function (req, res){
         var GCS_FOLDER_LEVEL = searchConfig(configs, "GCS_FOLDER_LEVEL" ).value;
         var GCS_FOLDER_TITLES = searchConfig(configs, "GCS_FOLDER_TITLES" ).value;
         var GCS_BUCKET = searchConfig(configs, "GCS_BUCKET" ).value;
+        var GCS_AUTOMATIC_FOLDER_CREATION = searchConfig(configs, "GCS_AUTOMATIC_FOLDER_CREATION" ).value;
+
         if(GCS_FOLDER_LEVEL == null)
             GCS_FOLDER_LEVEL = 2;
 
@@ -49,9 +50,12 @@ router.get('', function (req, res){
             appSession.bucket = GCS_BUCKET;
         else
             appSession.bucket = appSession.orginfo;
+            
         appSession.project = GCS_PROJECT;
         appSession.totalFolderLevel = GCS_FOLDER_LEVEL;
         appSession.folderTitles = GCS_FOLDER_TITLES;
+        appSession.automaticFolderCreation = GCS_AUTOMATIC_FOLDER_CREATION;
+        console.log(appSession.automaticFolderCreation);
     
         //SessionLogic.checkSession(appSession.sessionID).then(function (result)
         //{
@@ -94,6 +98,8 @@ router.get('/pass', function (req, res){
         var GCS_FOLDER_LEVEL = searchConfig(configs, "GCS_FOLDER_LEVEL" ).value;
         var GCS_FOLDER_TITLES = searchConfig(configs, "GCS_FOLDER_TITLES" ).value;
         var GCS_BUCKET = searchConfig(configs, "GCS_BUCKET" ).value;
+        var GCS_AUTOMATIC_FOLDER_CREATION = searchConfig(configs, "GCS_AUTOMATIC_FOLDER_CREATION" ).value;
+
         if(GCS_FOLDER_LEVEL == null)
             GCS_FOLDER_LEVEL = 2;
 
@@ -106,6 +112,8 @@ router.get('/pass', function (req, res){
         appSession.project = GCS_PROJECT;
         appSession.totalFolderLevel = GCS_FOLDER_LEVEL;
         appSession.folderTitles = GCS_FOLDER_TITLES;
+        appSession.automaticFolderCreation = GCS_AUTOMATIC_FOLDER_CREATION;
+        console.log(appSession.automaticFolderCreation);
 
         console.log("GCS_FOLDER_LEVEL")
         console.log(appSession.totalFolderLevel);

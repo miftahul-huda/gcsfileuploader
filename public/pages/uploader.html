@@ -39,6 +39,7 @@
             <input type="hidden" id="folderTitles" value="<%=session.folderTitles %>" />
             <input type="hidden" id="project" value="<%=session.project %>" />
             <input type="hidden" id="bucket" value="<%=session.bucket %>" />
+            <input type="hidden" id="automaticFolder" value="<%=session.automaticFolderCreation %>" />
         </div>
 
         <div class="position-relative form-group" style="display: flex; flex-direction: row; height: 10%">
@@ -100,6 +101,8 @@
 console.log("<%=sessionJson %>");
 
 var FOLDERDATA = null;
+var addedLevel = 0;
+
 
 function deleteFolder(level)
 {
@@ -242,13 +245,16 @@ Dropzone.options.myDropzone = {
     }
 };
 
-function  init()
+function  init(callback)
 {
     $("#loader").show();
     getFolderData(function(folders){
         $("#loader").hide();
         FOLDERDATA = folders;
         fillAllFolders(folders);
+        //showLastAdded();
+        if(callback != null)
+            callback()
     })
 }
 
@@ -320,10 +326,11 @@ function  init()
 
     function showAddFolder(level)
     {
+
         var folder = prompt("Add folder name");
         if(folder  != null && folder.length > 0)
         {
-        
+            addedLevel = level;
             var addedFolder = { folder: folder, text: folder }
             var parentFolder = $("#cmb-folder-" + (level - 1)).val();
 
@@ -368,10 +375,20 @@ function  init()
             $.get("/config/update-by-key/GCS_FOLDER_STRUCTURE/" + b64,  function (response)
             {
                 let ffolder = getCurrentPath(level + 1) + "/" + addedFolder.folder;
+                console.log("ffolder");
+                console.log(ffolder);
                 gcsCreateFolder(ffolder, (response)=>{
-                    init();
-                    $("#loader").hide();
-                    console.log(response);
+
+                    init(function()
+                    {
+                        createAutomaticFolders(level + 1, function()
+                        {
+                            init();
+                            console.log(response);
+                            $("#loader").hide();
+                        });
+                    });
+
                 });
 
             });
@@ -387,23 +404,36 @@ function  init()
                     var ccPath = currentPath + "/" + item.folder;
                     if(currentPath == "")
                         ccPath = item.folder;
-                    //alert(SEARCHPATH + " - " + ccPath)
+
+                    //alert(SEARCHPATH + " --- " + ccPath + " --- " + currentLevel + " --- " + level)   
                     if(SEARCHPATH == ccPath && currentLevel == level)
                     {
-                        //alert(item.folder)
+                        
                         if(item.subFolders == null)
                             item.subFolders = [];
                         item.subFolders.push(addedFolder);
 
                         var b64 = btoa(JSON.stringify(FOLDERDATA));
+                        console.log("FOLDERDATA")
+                        console.log(FOLDERDATA);
                         $("#loader").show();
                         $.get("/config/update-by-key/GCS_FOLDER_STRUCTURE/" + b64,  function (response)
                         {
                             let ffolder = getCurrentPath(level + 1) + "/" + addedFolder.folder;
                             gcsCreateFolder(ffolder, (response)=>{
-                                init();
-                                console.log(response);
-                                $("#loader").hide();
+                                
+                                init(function()
+                                {
+                                    createAutomaticFolders(level + 1, function()
+                                    {
+                                        init();
+                                        console.log(response);
+                                        $("#loader").hide();
+                                    });
+                                });
+
+
+
                             });
                         });
                     }
@@ -421,6 +451,90 @@ function  init()
         }
     }
 
+
+
+    function createAutomaticFolders(parentLevel, callback)
+    {
+
+        let idx = $("#cmb-folder-" + parentLevel).children().length - 1;
+        $("#cmb-folder-" + parentLevel)[0].selectedIndex = idx;
+        $("#cmb-folder-" + parentLevel).change();
+        
+        $("#cmb-folder-" + parentLevel).val()
+        console.log("createAutomaticFolders")
+        var automaticFolder = $("#automaticFolder").val();
+        if(automaticFolder != null && automaticFolder.length >  0)
+        {
+            
+            automaticFolder = JSON.parse(automaticFolder);
+            console.log("automaticFolder");
+            console.log(automaticFolder);
+            console.log("parentLevel");
+            console.log(parentLevel);
+            console.log(automaticFolder.folderLevel == parentLevel + 1);
+            if(automaticFolder.folderLevel == parentLevel + 1)
+            {
+
+                let newFolders = automaticFolder.folders;
+                createAutomaticFolder(automaticFolder.folderLevel, newFolders, 0, function(){
+                    if(callback != null)
+                        callback();
+                })
+            }
+            else
+            {
+                if(callback != null)
+                    callback();   
+
+            }
+        }
+        else
+        {
+            
+            if(callback != null)
+                callback();            
+        }
+
+        
+    }
+
+    function createAutomaticFolder(level, folders, idx, callback)
+    {
+        console.log("createAutomaticFolder")
+        if(idx < folders.length)
+        {
+
+            SEARCHPATH = "";
+            for(var i = 0; i < level; i++)
+            {
+                SEARCHPATH +=  $("#cmb-folder-" + i).val() + "/";
+            }
+            
+            if(SEARCHPATH.length > 0)
+                SEARCHPATH = SEARCHPATH.substring(0, SEARCHPATH.length - 1)
+
+            var addedFolder = { folder: folders[idx], text: folders[idx] }
+            console.log("Added Automatic Folder")
+            console.log(addedFolder);
+
+            var parentFolder = $("#cmb-folder-" + (level - 1)).val();
+            addFolderByParentAndLevel(0, (level - 1), parentFolder, addedFolder, FOLDERDATA, "" );   
+            createAutomaticFolder(level, folders, idx + 1, callback);   
+        }
+        else
+        {
+            if(callback != null)
+                callback();
+        }
+    }
+
+    function showLastAdded()
+    {
+        let idx = $("#cmb-folder-" + addedLevel).children().length - 1;
+        $("#cmb-folder-" + addedLevel)[0].selectedIndex = idx;
+        $("#cmb-folder-" + addedLevel).change();
+    }
+
     function fillFolder(level, folders)
     {
         var totalFolderLevel = parseInt( $("#totalFolderLevel").val());
@@ -428,6 +542,8 @@ function  init()
         {
             $("#loader").show();
             console.log("#cmb-folder-" + level)
+
+            let lastValue = $("#cmb-folder-" + level).val();
             $("#cmb-folder-" + level).html("");
             $("#cmb-folder-" + level).attr("level", level);
 
@@ -437,6 +553,22 @@ function  init()
                     console.log(item)
                     $("#cmb-folder-" + level).append("<option value='" + item.folder + "'>" + item.text + "</option>")
                 });
+                
+                //alert(lastValue)
+
+                if(lastValue == null)
+                {
+                    /*let idx = $("#cmb-folder-" + level).children().length - 1;
+                    $("#cmb-folder-" + level)[0].selectedIndex = idx;
+                    $("#cmb-folder-" + level).change();*/
+                }
+
+                if(lastValue != null)
+                {
+                    $("#cmb-folder-" + level).val(lastValue);
+                    $("#cmb-folder-" + level).change();
+                }
+                
 
                 $("#loader").hide();
             }
