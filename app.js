@@ -7,6 +7,7 @@ var bodyParser = require('body-parser')
 const session = require('express-session');
 const {Datastore} = require('@google-cloud/datastore');
 const {DatastoreStore} = require('@google-cloud/connect-datastore');
+var cors = require('cors')
 
 var formidable = require('express-formidable')
 var Initialization = require("./initialization")
@@ -20,16 +21,20 @@ ejs.close = '}}';
 
 var app = express();
 
+app.use(cors());
+
 //Consider all request as application/json
 //app.use(express.json({type: '*/*'}));
 // parse application/json
 //app.use(bodyParser.json())
 
 
-
+/*
 app.use(formidable({
 	uploadDir: '/tmp'
 }));
+*/
+
 
 app.use(session({
   store: new DatastoreStore({
@@ -70,6 +75,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
+});
+
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
 });
 
 // error handler
