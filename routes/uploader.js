@@ -93,13 +93,75 @@ router.post('/gcs/view/:project/:uri', (req, res) => {
 
 });
 
+router.get('/gcs/download/:project/:bucket/:path', (req, res) => {
+
+  console.log("Params download ")
+  console.log(req.params)
+  let project = req.params.project;
+  let bucket = req.params.bucket;
+  let filepath = req.params.path;
+
+
+  getConfig("GCS_CREDENTIAL").then(async function (response){
+    let credential = response.value;
+    let downloadedfile = "/tmp/" + path.basename(filepath);
+
+    console.log("downloadedfile")
+    console.log(downloadedfile)
+
+    await gcs_download_file(project, bucket, filepath,  downloadedfile).catch((err)=>
+    {
+      res.send({ success: false, message: err });
+    });
+    
+    res.download(downloadedfile)
+  });
+
+});
+
 router.get('/gcs/download-folder/:project/:bucket/:folder', (req, res) => {
 
+  console.log("Params 1");
+  console.log(req.params);
+  download_folder(req, res);
+
+});
+
+router.get('/gcs/download-folder/:project/:bucket/:folder/:zipfilename', (req, res) => {
+
+  console.log("Params 2");
+  console.log(req.params);
+  download_folder(req, res);
+
+});
+
+
+function download_folder(req, res)
+{
+  console.log("Download folder")
   let projectName = req.params.project;
   let bucketName = req.params.bucket;
   let gcsFolder = req.params.folder;
+
+  let zipFilename = req.params.zipfilename;
+
   if(gcsFolder == "*")
     gcsFolder = null;
+
+  let outputZipFile = "result.zip";
+
+  if(zipFilename != null)
+    outputZipFile = zipFilename;
+  else
+  {
+    if(gcsFolder != null)
+    {
+      let ff = gcsFolder.split("/");
+      ff = ff[ff.length - 1];
+      outputZipFile = ff + ".zip";
+    }
+  }
+
 
   getConfig("GCS_CREDENTIAL").then(async function (response){
     let credential = response.value;
@@ -122,17 +184,87 @@ router.get('/gcs/download-folder/:project/:bucket/:folder', (req, res) => {
             if(counter == totalFiles - 1)
             {
               console.log("Zip Files");
-              zipFiles(files, "/tmp/temporary.zip", function()
+              let tempZipFile = "/tmp/temporary-" + makeid(6) + ".zip";
+              zipFiles(files, tempZipFile, function()
               {
                 res.contentType('zip');
-                var options = {
-                  root: "/tmp"
-                };
-                res.download("/tmp/temporary.zip", "result.zip");
+
+                res.download(tempZipFile, outputZipFile, function(err){
+                  fs.unlink(tempZipFile, function(){});
+                });
+              }, function (err)
+              {
+                  res.send({ success: false, message: err })
               })
             }
 
             counter++;
+          }).catch((err)=>
+          {
+            res.send({ success: false, message: err });
+          });
+        }
+      })
+    })
+  });
+
+}
+
+router.get('/gcs/zip-folder/:project/:bucket/:folder/:outputbucket/:outputpath', (req, res) => {
+
+  console.log("here")
+  let projectName = req.params.project;
+  let bucketName = req.params.bucket;
+  let gcsFolder = req.params.folder;
+  let outputpath = req.params.outputpath;
+  let outputBucket = req.params.outputbucket;
+
+  if(gcsFolder == "*")
+    gcsFolder = null;
+
+
+  getConfig("GCS_CREDENTIAL").then(async function (response){
+    let credential = response.value;
+
+    if(credential == "")
+      credential = null;
+  
+    console.log(projectName + " - " + bucketName + " - " + gcsFolder + " - " + outputpath)
+    getListOfObject(credential, projectName, bucketName, gcsFolder).then(function (files){
+      console.log(files)
+      let totalFiles = getTotalFiles(files);
+      let counter = 0;
+      files.forEach(async (file, idx)=>{
+        console.log(file);
+
+        if(file.name.endsWith("/")  == false)
+        {
+          let downloadedfile = "/tmp/" + path.basename(file.name);
+          await gcs_download_file(projectName, bucketName, file.name,  downloadedfile, credential).then(()=>{
+            console.log("dsadfa " + counter + " --- " + totalFiles)
+            if(counter == totalFiles - 1)
+            {
+              console.log("Zip Files");
+              let zipFilename = gcsFolder.split("/");
+              zipFilename = zipFilename[zipFilename.length - 1];
+
+              zipFilename = "/tmp/" + zipFilename + ".zip";
+
+              zipFiles(files, zipFilename, function()
+              {
+                console.log(outputpath);
+                
+                uploadFileToGcs(credential, projectName, outputBucket, outputpath, zipFilename).then((result)=>{
+                  fs.unlink(zipFilename, function(){});
+                  res.send({ success: true, payload: "gs://" + outputBucket + "/" + outputpath });
+                })
+              })
+            }
+
+            counter++;
+          }).catch((err)=>
+          {
+            res.send({ success: false, message: err });
           });
         }
       })
@@ -152,8 +284,9 @@ function getTotalFiles(files)
   return counter;
 }
 
-function zipFiles(files, outputFile, callback)
+function zipFiles(files, outputFile, callback, callbackError)
 {
+       console.log("Zipping files ")
       // create a file to stream archive data to.
       const output = fs.createWriteStream(outputFile);
       const archive = archiver('zip', {
@@ -165,6 +298,12 @@ function zipFiles(files, outputFile, callback)
       output.on('close', function() {
         console.log(archive.pointer() + ' total bytes');
         console.log('archiver has been finalized and the output file descriptor has closed.');
+
+        files.forEach((file)=>{
+          let downloadedfile = "/tmp/" + path.basename(file.name);
+          console.log("Deleting file " + downloadedfile)
+          fs.unlink(downloadedfile, function(){})
+        })
 
         if(callback != null)
           callback();
@@ -183,13 +322,15 @@ function zipFiles(files, outputFile, callback)
           // log warning
         } else {
           // throw error
-          throw err;
+          if(callbackError != null)
+            callbackError(err);
         }
       });
 
       // good practice to catch this error explicitly
       archive.on('error', function(err) {
-        throw err;
+        if(callbackError != null)
+          callbackError(err);
       });
 
       // pipe archive data to the file
@@ -203,11 +344,12 @@ function zipFiles(files, outputFile, callback)
 
           console.log("Archiving " + downloadedfile);
           archive.append(fs.createReadStream(downloadedfile), { name: path.basename(file.name) });
-          // finalize the archive (ie we are done appending files but streams have to finish yet)
-          // 'close', 'end' or 'finish' may be fired right after calling this method so register to them beforehand
+
         }
       })
 
+      // finalize the archive (ie we are done appending files but streams have to finish yet)
+      // 'close', 'end' or 'finish' may be fired right after calling this method so register to them beforehand
       archive.finalize();
 }
 
@@ -277,7 +419,9 @@ router.post('/gcs/:project/:bucket/:folder', formidable({
           })
 
           let uri = "gs://" + bucketName + "/" + outputFilename;
-          res.setHeader('Content-Type', 'application/json');
+          res.header('Content-Type', 'application/json');
+          res.header("Access-Control-Allow-Origin", "*");
+          res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
           let o = { success: true, payload: uri }
           //o = Formatter.removeXSS(o);
           res.send(o);
@@ -355,6 +499,48 @@ router.post('/gcs-create-file/:project/:bucket/:filepath', express.json({type: '
 
 })
 
+router.post('/gcs-create-image/:project/:bucket/:filepath', express.json({type: '*/*', limit: '300mb'}), (req, res) => {
+
+  console.log("sdfasdfas")
+  let content = req.body.content;
+  console.log(content)
+  let ext = "png";
+  if(content.indexOf("jpeg") > -1 || content.indexOf("jpg") > -1)
+    ext = "jpg";
+
+  content = content.replace(/^data:image\/png;base64,/, "")
+  content = content.replace(/^data:image\/jpeg;base64,/, "")
+  
+  let project = req.params.project;
+  let bucket = req.params.bucket;
+  let filepath = req.params.filepath;
+
+  getConfig("GCS_CREDENTIAL").then(function (response){
+    let credential = response.value;
+    let filename = "/tmp/" + makeid(10) + ".tmp";
+    fs.writeFile(filename, content, function(err){
+      //f
+      console.log("filename");
+      console.log(filename);
+      if(err)
+        res.send({ success: false, message: err });
+      else
+      {
+        console.log("uploadFileToGcs");
+
+        uploadFileToGcs(credential, project, bucket, filepath, filename ).then(()=>{
+          //fs.unlink( filename, function(){});
+          res.send({ success: true, payload: filepath })
+        }).catch(()=>{
+          res.send({ success: false, payload: filepath })
+        })
+        
+      }
+    });
+  });
+
+})
+
 
 
 router.get('/gcs-list-public/:project/:bucket/:folder', (req, res) => {
@@ -389,8 +575,6 @@ router.get('/gcs-list-public/:project/:bucket', (req, res) => {
     
   let projectName = req.params.project;
   let bucketName = req.params.bucket;
-
-
   getConfig("GCS_CREDENTIAL").then(function (response){
     let credential = response.value;
 
@@ -407,9 +591,7 @@ router.get('/gcs-list-public/:project/:bucket', (req, res) => {
       //o = Formatter.removeXSS(o);
       res.send(o);
     })
-
   });
-  
 })
 
 router.get('/gcs-list/:project/:bucket/:folder', (req, res) => {
@@ -498,23 +680,21 @@ router.get('/gcs-create-thumbnail/:project/:bucket/:file', (req, res) => {
 function gcs_download_file(projectId, bucketName, sourcepath, targetPath, credential=null)
 {
 
-  console.log("downloading " + sourcepath)
+  console.log("downloading " + bucketName + "/" + sourcepath)
 
   let promise = new Promise( async (resolve, reject)=>{
 
     let ext = path.extname(sourcepath);
     let file = null;
 
-    if(globalStorage == null)
-    {
-      if(credential != null)
-        globalStorage = new Storage({ project: projectId, keyFilename: credential });
-      else
-        globalStorage = new Storage();
-      
-      globalBucket = globalStorage.bucket(bucketName); 
-      
-    }
+
+    if(credential != null)
+      globalStorage = new Storage({ project: projectId, keyFilename: credential });
+    else
+      globalStorage = new Storage();
+    
+
+    globalBucket = globalStorage.bucket(bucketName); 
     
     file = globalBucket.file(sourcepath);
   
