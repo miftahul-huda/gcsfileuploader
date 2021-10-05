@@ -36,9 +36,11 @@ function getConfig(key)
 
 }
 
-async function uploadFileToGcs(credential, projectId, bucketName, gcsfilename, filename) {
+async function uploadFileToGcs(credential, projectId, bucketName, gcsfilename, filename, callback) {
   // Creates a client
   var storage = null;
+
+  console.log("uploadFileToGcs. Project: " + projectId + ", bucket: " + bucketName + ", file : " + gcsfilename);
 
   if(credential != null)
     storage = new Storage({ project: projectId, keyFilename: credential });
@@ -61,6 +63,8 @@ async function uploadFileToGcs(credential, projectId, bucketName, gcsfilename, f
   }, function(err){
     console.log(filename + " uploadFileToGcs.done ")
     console.log(err);
+    if(callback != null)
+      callback()
   });
 
 
@@ -254,8 +258,10 @@ router.get('/gcs/zip-folder/:project/:bucket/:folder/:outputbucket/:outputpath',
               {
                 console.log(outputpath);
                 
-                uploadFileToGcs(credential, projectName, outputBucket, outputpath, zipFilename).then((result)=>{
+                uploadFileToGcs(credential, projectName, outputBucket, outputpath, zipFilename,function(){
                   fs.unlink(zipFilename, function(){});
+                }).then((result)=>{
+                  //
                   res.send({ success: true, payload: "gs://" + outputBucket + "/" + outputpath });
                 })
               })
@@ -412,9 +418,12 @@ router.post('/gcs/:project/:bucket/:folder', formidable({
           await image.writeAsync(inputFile);
           */
         
-          uploadFileToGcs(credential, projectName, bucketName, outputFilename, inputFile).then(async function (res){
+          console.log("Outputfilename : " + outputFilename)
 
-            //fs.unlinkSync(req.files.file.path);
+          uploadFileToGcs(credential, projectName, bucketName, outputFilename, inputFile).then( function (res){
+
+            //console.log("Deleting : " + inputFile)
+            //fs.unlinkSync(inputFile);
 
           })
 
@@ -662,8 +671,12 @@ router.get('/gcs-create-thumbnail/:project/:bucket/:file', (req, res) => {
       await image.quality(60);
       await image.writeAsync("/tmp/" + baseFilename);
 
-      uploadFileToGcs(credential, projectName, bucketName, outputFilename, "/tmp/" + baseFilename).then(async function (result){
-        //fs.unlinkSync(req.files.file.path);
+      uploadFileToGcs(credential, projectName, bucketName, outputFilename, "/tmp/" + baseFilename,function(){
+        console.log("Delete " + "/tmp/" + baseFilename)
+        fs.unlinkSync("/tmp/" + baseFilename);
+
+      }).then( function (result){
+       
         let uri = "gs://" + bucketName + "/" + outputFilename;
         res.setHeader('Content-Type', 'application/json');
         let o = { success: true, payload: uri }
