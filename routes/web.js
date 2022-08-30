@@ -27,6 +27,25 @@ router.get("/config", function(req, res){
     })
 });
 
+router.get("/configpass", function(req, res){
+    var appSession = req.session;
+
+    getAllConfig().then(function(configs){
+        var AUTH_HOST = searchConfig(configs, "AUTHENTICATION_HOST" ).value;
+        var GCS_PROJECT = searchConfig(configs, "GCS_PROJECT" ).value;
+        var loginUrl = AUTH_HOST + "/web/login";
+    
+       
+        var dir = __dirname;
+        var p = path.resolve( dir, "../public/pages/", "configuration");
+        var option = { app_logo: process.env.APP_LOGO, app_title: process.env.APP_TITLE }
+        res.render(p, { session:  appSession, option: option} )    
+    
+    }).catch(function(error){
+        console.log(error);
+    })
+});
+
 router.get('', function (req, res){
     var appSession = req.session;
     

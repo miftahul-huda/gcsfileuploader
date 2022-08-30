@@ -123,6 +123,33 @@ router.get('/gcs/download/:project/:bucket/:path', (req, res) => {
 
 });
 
+router.get('/gcs/download-file/:project/:bucket/:path', (req, res) => {
+
+  console.log("Params download ")
+  console.log(req.params)
+  let project = req.params.project;
+  let bucket = req.params.bucket;
+  let filepath = req.params.path;
+
+
+  getConfig("GCS_CREDENTIAL").then(async function (response){
+    let credential = response.value;
+    let downloadedfile = "/tmp/" + path.basename(filepath);
+
+    console.log("downloadedfile")
+    console.log(downloadedfile)
+
+    await gcs_download_file(project, bucket, filepath,  downloadedfile).catch((err)=>
+    {
+      res.send({ success: false, message: err });
+    }).then(()=>{
+      res.download(downloadedfile)
+    })
+  });
+
+});
+
+
 router.get('/gcs/download-folder/:project/:bucket/:folder', (req, res) => {
 
   console.log("Params 1");
@@ -381,8 +408,6 @@ router.post('/gcs/:project/:bucket/:folder', formidable({
     let outputFilename = originalFilename;
   
     outputFilename = gcsFolder + '/' + outputFilename;
-
-
 
     getConfig("GCS_FILETYPES").then(function (response){
       let filetypes = response.value;
