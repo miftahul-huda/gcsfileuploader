@@ -770,12 +770,24 @@ router.get('/gcs-delete/:project/:bucket/:files', (req, res) => {
 
     var filenames = gcsFiles.split(';');
 
-    deleteFiles(credential, projectName, bucketName, filenames).then(function (result){
-      let o = { success: true, payload:  result }
-      res.setHeader('Content-Type', 'application/json');
-      //o = Formatter.removeXSS(o);
-      res.send(o);
-    })
+    try
+    {
+      deleteFiles(credential, projectName, bucketName, filenames).then(function (result){
+        let o = { success: true, payload:  result }
+        res.setHeader('Content-Type', 'application/json');
+        //o = Formatter.removeXSS(o);
+        res.send(o);
+      }).catch((err)=>{
+        res.send({ success: false, error: E })
+      })
+      
+
+    }
+    catch(E)
+    {
+      res.send({ success: false, error: E })
+    }
+
   });
 })
 
@@ -878,24 +890,21 @@ async function deleteFiles(credential,  projectId, bucketName, files)
   else
     storage = new Storage();
 
-  var promise = new Promise((resolve, reject)=>{
+  var promise = new Promise(async (resolve, reject)=>{
     var bucket = storage.bucket(bucketName);
     console.log(files);
     for(var i = 0; i < files.length;i++)
     {
       var filename = files[i];
-      console.log("here")
-      console.log(filename);
-      try {
-        deleteFile(bucket, filename);
-        console.log(filename)
-        successes.push(filename);
-      }
-      catch (e)
-      {
-        console.log(e);
-        errors.push(e);
-      }
+      //console.log("here")
+      //console.log(filename);
+      
+      let res = await deleteFile(bucket, filename);
+
+      if(res.success != false)
+        successes.push(res);
+      else 
+        errors.push(res)
       
     } 
     
@@ -908,8 +917,21 @@ async function deleteFiles(credential,  projectId, bucketName, files)
 
 async function deleteFile(bucket, filename)
 {
-  await bucket.file(filename).delete();
-  return filename;
+  try
+  {
+    await bucket.file(filename).delete().then((err)=>{
+      
+      //throw err;
+    })
+    return { success: true, filename: filename};
+  }
+  catch(e)
+  {
+    //console.log("errrrrrrroooooorrr")
+    return  { success: false, filename: filename, error: e};
+    //throw e;
+  }
+
 }
 
 module.exports = router;
